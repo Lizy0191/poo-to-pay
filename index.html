@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f5f0e8" />
+  <title>便便打工人 | 每次上班都有回报</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">便</div>
+        <div>
+          <strong>便便打工人</strong>
+          <span>每次上班都有回报</span>
+        </div>
+      </div>
+
+      <nav class="nav-list">
+        <button class="nav-item is-active" data-view="today"><span class="nav-icon">⌂</span>今日看板</button>
+        <button class="nav-item" data-view="history"><span class="nav-icon">▤</span>历史记录</button>
+        <button class="nav-item" data-view="advice"><span class="nav-icon">✦</span>健康建议</button>
+      </nav>
+
+      <div class="sidebar-note">
+        <span class="tiny-spark">✦</span>
+        <strong>身体是第一生产力</strong>
+        <p>轻松记录，认真生活。今天也要顺顺利利。</p>
+      </div>
+
+      <button class="profile-card" id="openSettings" type="button">
+        <div class="avatar">小</div>
+        <div class="profile-copy"><strong id="profileName">小便便</strong><span>个人设置</span></div>
+        <span class="profile-arrow">›</span>
+      </button>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="mobile-brand"><div class="brand-mark">便</div><strong>便便打工人</strong></div>
+        <div class="topbar-date"><span class="status-dot"></span><span id="headerDate">今天，正在为健康上班</span></div>
+        <button class="icon-button" id="mobileSettings" type="button" aria-label="打开设置" title="设置">⚙</button>
+      </header>
+
+      <div id="viewRoot"></div>
+    </main>
+  </div>
+
+  <dialog class="settings-dialog" id="settingsDialog">
+    <form method="dialog" class="settings-form" id="settingsForm">
+      <div class="dialog-head"><div><span class="eyebrow">个人档案</span><h2>设置结算规则</h2></div><button class="close-button" value="cancel" aria-label="关闭">×</button></div>
+      <p class="dialog-lead">给每次认真上班定一个小小的奖励，也可以随时调整。</p>
+      <label>你的称呼<input id="nameInput" maxlength="12" required /></label>
+      <label>每次结算工资（元）<input id="rateInput" type="number" min="0" max="999" step="0.1" required /></label>
+      <label>每日建议次数<input id="targetInput" type="number" min="1" max="10" step="1" required /></label>
+      <div class="dialog-actions"><button class="button button-ghost" value="cancel">取消</button><button class="button button-primary" id="saveSettings" value="default">保存设置</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
