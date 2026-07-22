@@ -99,7 +99,12 @@ function renderToday() {
 
 function renderTodayEntries(items) {
   if (!items.length) return '<div class="empty-state"><b>☁</b>今天还没有记录，身体在等你发工资。</div>';
-  return items.map(item => `<div class="record-row ${isSettled(item) ? 'is-settled' : ''}"><div class="record-dot">${item.quality === '顺畅' ? '☀' : item.quality === '偏硬' ? '◒' : '≈'}</div><div class="record-copy"><strong>${item.time} · ${item.quality}</strong><span>${escapeHtml(item.feeling || item.note || '认真完成一次身体打卡')}</span></div><span class="record-money">+${money(getEntryWage(item))}<small>${isSettled(item) ? '已结算' : '待结算'}</small></span></div>`).join('');
+  return items.map(item => `<div class="record-row ${isSettled(item) ? 'is-settled' : ''}"><div class="record-dot">${item.quality === '顺畅' ? '☀' : item.quality === '偏硬' ? '◒' : '≈'}</div><div class="record-copy"><strong>${item.time} · ${item.quality}</strong><span>${escapeHtml(item.feeling || item.note || '认真完成一次身体打卡')}</span></div><span class="record-money">+${money(getEntryWage(item))}<small>${isSettled(item) ? '已结算' : '待结算'}</small></span>${renderDeleteButton(item)}</div>`).join('');
+}
+
+function renderDeleteButton(item) {
+  if (isSettled(item)) return '<span class="record-locked" title="已结算记录不能直接删除">已锁定</span>';
+  return `<button class="record-delete" data-delete-entry="${escapeHtml(item.id)}" type="button" aria-label="删除 ${escapeHtml(item.time)} 的记录" title="删除记录">×</button>`;
 }
 
 function renderRecordForm() {
@@ -110,7 +115,7 @@ function renderHistory() {
   const sorted = [...state.entries].sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
   const totalWage = getTotalWage(state.entries);
   const pendingTotal = getTotalWage(getPendingEntries());
-  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">ARCHIVE · YOUR BODY LOG</span><h1>历史记录</h1><p class="subheading">每一次规律，都是给未来的自己发红包。</p></div><div class="date-chip">累计收入 <strong>${money(totalWage)}</strong></div></div><article class="panel"><div class="panel-head"><div><h2>全部上班明细</h2><p>共 ${state.entries.length} 条记录 · 待结算 ${money(pendingTotal)}</p></div><div class="history-total">${money(totalWage)}</div></div><div class="history-toolbar"><input class="search-input" id="historySearch" placeholder="搜索日期、状态或备注..." /><button class="button button-ghost" data-export>导出记录</button><button class="button button-primary" data-settle type="button">结算待发工资</button></div><div class="table-wrap"><table class="history-table"><thead><tr><th>日期</th><th>时间</th><th>状态</th><th>体感 / 备注</th><th>工资</th></tr></thead><tbody id="historyBody">${renderHistoryRows(sorted)}</tbody></table></div></article>${renderSettlementPanel()}</section>`;
+  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">ARCHIVE · YOUR BODY LOG</span><h1>历史记录</h1><p class="subheading">每一次规律，都是给未来的自己发红包。</p></div><div class="date-chip">累计收入 <strong>${money(totalWage)}</strong></div></div><article class="panel"><div class="panel-head"><div><h2>全部上班明细</h2><p>共 ${state.entries.length} 条记录 · 待结算 ${money(pendingTotal)}</p></div><div class="history-total">${money(totalWage)}</div></div><div class="history-toolbar"><input class="search-input" id="historySearch" placeholder="搜索日期、状态或备注..." /><button class="button button-ghost" data-export>导出记录</button><button class="button button-primary" data-settle type="button">结算待发工资</button></div><div class="table-wrap"><table class="history-table"><thead><tr><th>日期</th><th>时间</th><th>状态</th><th>体感 / 备注</th><th>工资</th><th>操作</th></tr></thead><tbody id="historyBody">${renderHistoryRows(sorted)}</tbody></table></div></article>${renderSettlementPanel()}</section>`;
 }
 
 function renderSettlementPanel() {
@@ -119,8 +124,8 @@ function renderSettlementPanel() {
 }
 
 function renderHistoryRows(items) {
-  if (!items.length) return '<tr><td colspan="5"><div class="empty-state">没有找到匹配的记录。</div></td></tr>';
-  return items.map(item => `<tr><td>${formatDate(item.date)}</td><td>${item.time}</td><td><span class="tag ${qualityClass(item.quality)}">${item.quality}</span></td><td>${escapeHtml(item.feeling || item.note || '—')}</td><td class="record-money">+${money(getEntryWage(item))}<small>${isSettled(item) ? '已结算' : '待结算'}</small></td></tr>`).join('');
+  if (!items.length) return '<tr><td colspan="6"><div class="empty-state">没有找到匹配的记录。</div></td></tr>';
+  return items.map(item => `<tr><td>${formatDate(item.date)}</td><td>${item.time}</td><td><span class="tag ${qualityClass(item.quality)}">${item.quality}</span></td><td>${escapeHtml(item.feeling || item.note || '—')}</td><td class="record-money">+${money(getEntryWage(item))}<small>${isSettled(item) ? '已结算' : '待结算'}</small></td><td>${renderDeleteButton(item)}</td></tr>`).join('');
 }
 
 function renderAdvice() {
@@ -145,9 +150,14 @@ function bindViewEvents() {
   $$('[data-scroll]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.scroll)?.scrollIntoView({ behavior: 'smooth', block: 'center' })));
   $$('[data-water]').forEach(button => button.addEventListener('click', () => { state.water = button.dataset.water === 'reset' ? 0 : state.water + Number(button.dataset.water); saveState(); render(); showToast(button.dataset.water === 'reset' ? '饮水记录已清零' : `已记录 ${button.dataset.water} ml 饮水`); }));
   $$('[data-settle]').forEach(button => button.addEventListener('click', settlePendingWages));
+  bindDeleteEvents();
   $('#recordForm')?.addEventListener('submit', (event) => { event.preventDefault(); const quality = $('input[name="quality"]:checked').value; state.entries.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), date: todayKey, time: $('#recordTime').value, quality, feeling: $('#recordFeeling').value, note: $('#recordNote').value.trim(), wage: state.rate }); saveState(); render(); showToast(`打卡成功，${money(state.rate)} 已到账`); });
-  $('#historySearch')?.addEventListener('input', (event) => { const keyword = event.target.value.trim().toLowerCase(); const filtered = state.entries.filter(item => `${item.date} ${item.time} ${item.quality} ${item.feeling} ${item.note}`.toLowerCase().includes(keyword)).sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`)); $('#historyBody').innerHTML = renderHistoryRows(filtered); });
+  $('#historySearch')?.addEventListener('input', (event) => { const keyword = event.target.value.trim().toLowerCase(); const filtered = state.entries.filter(item => `${item.date} ${item.time} ${item.quality} ${item.feeling} ${item.note}`.toLowerCase().includes(keyword)).sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`)); $('#historyBody').innerHTML = renderHistoryRows(filtered); bindDeleteEvents(); });
   $('[data-export]')?.addEventListener('click', exportRecords);
+}
+
+function bindDeleteEvents() {
+  $$('[data-delete-entry]').forEach(button => button.addEventListener('click', () => deleteEntry(button.dataset.deleteEntry)));
 }
 
 function settlePendingWages() {
@@ -168,6 +178,17 @@ function settlePendingWages() {
   saveState();
   render();
   showToast(`${money(amount)} 已结算，工资清零`);
+}
+
+function deleteEntry(id) {
+  const entry = state.entries.find(item => item.id === id);
+  if (!entry) return;
+  if (isSettled(entry)) { showToast('已结算记录不能直接删除'); return; }
+  if (!window.confirm(`确认删除 ${entry.date} ${entry.time} 的排便记录吗？这笔待结算工资也会移除。`)) return;
+  state.entries = state.entries.filter(item => item.id !== id);
+  saveState();
+  render();
+  showToast('排便记录已删除');
 }
 
 function getStreak() {
