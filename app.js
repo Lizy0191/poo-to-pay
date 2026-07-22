@@ -20,12 +20,23 @@ const seededEntries = [
 ];
 
 const defaultState = {
-  name: '小便便', rate: 8.8, target: 2, water: 1250, activeView: 'today', entries: seededEntries
+  name: '小便便', rate: 8.8, target: 2, water: 1250, activeView: 'today', entries: seededEntries,
+  settlements: [], settledEntryIds: []
 };
 
 let state;
 try { state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState; } catch { state = defaultState; }
 state.entries = Array.isArray(state.entries) ? state.entries : seededEntries;
+state.settlements = Array.isArray(state.settlements) ? state.settlements : [];
+state.settledEntryIds = [...new Set([
+  ...(Array.isArray(state.settledEntryIds) ? state.settledEntryIds : []),
+  ...state.settlements.flatMap(item => Array.isArray(item.entryIds) ? item.entryIds : [])
+])];
+state.rate = Number.isFinite(Number(state.rate)) ? Number(state.rate) : defaultState.rate;
+state.entries = state.entries.map(item => ({
+  ...item,
+  wage: Number.isFinite(Number(item.wage)) ? Number(item.wage) : state.rate
+}));
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -37,6 +48,11 @@ const formatDate = (key) => {
 const getEntries = (key = todayKey) => state.entries.filter(item => item.date === key).sort((a, b) => b.time.localeCompare(a.time));
 const saveState = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const qualityClass = (quality) => quality === '顺畅' ? 'good' : quality === '偏稀' ? 'alert' : '';
+const getEntryWage = (item) => Number.isFinite(Number(item.wage)) ? Number(item.wage) : state.rate;
+const isSettled = (item) => state.settledEntryIds.includes(item.id);
+const getPendingEntries = () => state.entries.filter(item => !isSettled(item));
+const getTotalWage = (items) => items.reduce((sum, item) => sum + getEntryWage(item), 0);
+const getSettlementTime = (date = new Date()) => date.toTimeString().slice(0, 5);
 
 function getWeekData() {
   return Array.from({ length: 7 }, (_, index) => {
@@ -48,9 +64,11 @@ function getWeekData() {
 
 function renderToday() {
   const todayEntries = getEntries();
-  const todayTotal = todayEntries.length * state.rate;
-  const progress = Math.min(100, Math.round(todayEntries.length / state.target * 100));
+  const pendingEntries = getPendingEntries();
+  const pendingTotal = getTotalWage(pendingEntries);
   const week = getWeekData();
+  const weekTotal = getTotalWage(state.entries.filter(item => week.some(day => day.key === item.date)));
+  const progress = Math.min(100, Math.round(todayEntries.length / state.target * 100));
   const maxCount = Math.max(2, ...week.map(item => item.count));
   return `
     <section class="page">
@@ -60,12 +78,12 @@ function renderToday() {
       </div>
       <div class="overview-grid">
         <article class="earnings-card">
-          <div class="earnings-top"><div><span class="eyebrow">今日已结算工资</span><h2>${money(todayTotal)}</h2><p>${todayEntries.length ? `完成 ${todayEntries.length} 次打卡，继续保持好状态` : '记录第一次打卡，领取今天的第一笔工资'}</p></div><div class="mascot" aria-label="可爱的便便吉祥物"><div class="poop-shape"></div><div class="face"><i class="eye left"></i><i class="eye right"></i><i class="smile"></i><i class="blush left"></i><i class="blush right"></i></div></div></div>
-          <div class="earnings-bottom"><div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div><span class="progress-label">${todayEntries.length}/${state.target} 次健康目标</span></div>
+          <div class="earnings-top"><div><span class="eyebrow">待结算工资</span><h2>${money(pendingTotal)}</h2><p>${pendingEntries.length ? `还有 ${pendingEntries.length} 次打卡可以一起结算` : '工资已清零，记录新的一次就会重新累计'}</p></div><div class="mascot" aria-label="可爱的便便吉祥物"><div class="poop-shape"></div><div class="face"><i class="eye left"></i><i class="eye right"></i><i class="smile"></i><i class="blush left"></i><i class="blush right"></i></div></div></div>
+          <div class="earnings-bottom"><div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div><span class="progress-label">${todayEntries.length}/${state.target} 次健康目标</span><button class="settlement-button" data-settle type="button">结算工资</button></div>
         </article>
         <div class="quick-stats">
           <article class="mini-card"><div class="mini-icon">↗</div><div class="mini-copy"><span>连续开工</span><strong>${getStreak()} <small>天</small></strong></div><button class="mini-link" data-view="history">查看</button></article>
-          <article class="mini-card"><div class="mini-icon">♨</div><div class="mini-copy"><span>本周累计</span><strong>${money(week.reduce((sum, item) => sum + item.count * state.rate, 0))}</strong></div><span class="mini-link">稳步涨薪</span></article>
+          <article class="mini-card"><div class="mini-icon">♨</div><div class="mini-copy"><span>本周累计</span><strong>${money(weekTotal)}</strong></div><span class="mini-link">稳步涨薪</span></article>
         </div>
       </div>
       <div class="section-grid">
@@ -81,7 +99,7 @@ function renderToday() {
 
 function renderTodayEntries(items) {
   if (!items.length) return '<div class="empty-state"><b>☁</b>今天还没有记录，身体在等你发工资。</div>';
-  return items.map(item => `<div class="record-row"><div class="record-dot">${item.quality === '顺畅' ? '☀' : item.quality === '偏硬' ? '◒' : '≈'}</div><div class="record-copy"><strong>${item.time} · ${item.quality}</strong><span>${escapeHtml(item.feeling || item.note || '认真完成一次身体打卡')}</span></div><span class="record-money">+${money(state.rate)}</span></div>`).join('');
+  return items.map(item => `<div class="record-row ${isSettled(item) ? 'is-settled' : ''}"><div class="record-dot">${item.quality === '顺畅' ? '☀' : item.quality === '偏硬' ? '◒' : '≈'}</div><div class="record-copy"><strong>${item.time} · ${item.quality}</strong><span>${escapeHtml(item.feeling || item.note || '认真完成一次身体打卡')}</span></div><span class="record-money">+${money(getEntryWage(item))}<small>${isSettled(item) ? '已结算' : '待结算'}</small></span></div>`).join('');
 }
 
 function renderRecordForm() {
@@ -90,12 +108,19 @@ function renderRecordForm() {
 
 function renderHistory() {
   const sorted = [...state.entries].sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
-  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">ARCHIVE · YOUR BODY LOG</span><h1>历史记录</h1><p class="subheading">每一次规律，都是给未来的自己发红包。</p></div><div class="date-chip">累计结算 <strong>${money(state.entries.length * state.rate)}</strong></div></div><article class="panel"><div class="panel-head"><div><h2>全部上班明细</h2><p>共 ${state.entries.length} 条记录</p></div><div class="history-total">${money(state.entries.length * state.rate)}</div></div><div class="history-toolbar"><input class="search-input" id="historySearch" placeholder="搜索日期、状态或备注..." /><button class="button button-ghost" data-export>导出记录</button></div><div class="table-wrap"><table class="history-table"><thead><tr><th>日期</th><th>时间</th><th>状态</th><th>体感 / 备注</th><th>工资</th></tr></thead><tbody id="historyBody">${renderHistoryRows(sorted)}</tbody></table></div></article></section>`;
+  const totalWage = getTotalWage(state.entries);
+  const pendingTotal = getTotalWage(getPendingEntries());
+  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">ARCHIVE · YOUR BODY LOG</span><h1>历史记录</h1><p class="subheading">每一次规律，都是给未来的自己发红包。</p></div><div class="date-chip">累计收入 <strong>${money(totalWage)}</strong></div></div><article class="panel"><div class="panel-head"><div><h2>全部上班明细</h2><p>共 ${state.entries.length} 条记录 · 待结算 ${money(pendingTotal)}</p></div><div class="history-total">${money(totalWage)}</div></div><div class="history-toolbar"><input class="search-input" id="historySearch" placeholder="搜索日期、状态或备注..." /><button class="button button-ghost" data-export>导出记录</button><button class="button button-primary" data-settle type="button">结算待发工资</button></div><div class="table-wrap"><table class="history-table"><thead><tr><th>日期</th><th>时间</th><th>状态</th><th>体感 / 备注</th><th>工资</th></tr></thead><tbody id="historyBody">${renderHistoryRows(sorted)}</tbody></table></div></article>${renderSettlementPanel()}</section>`;
+}
+
+function renderSettlementPanel() {
+  const rows = state.settlements.map(item => `<tr><td>${formatDate(item.date)}</td><td>${item.time}</td><td>${item.entryCount} 次打卡</td><td class="record-money">${money(item.amount)}</td></tr>`).join('');
+  return `<article class="panel settlement-panel"><div class="panel-head"><div><h2>工资结算记录</h2><p>每次结算都会保留流水，打卡明细不会被删除。</p></div><span class="tag good">${state.settlements.length} 次结算</span></div><div class="table-wrap"><table class="history-table"><thead><tr><th>结算日期</th><th>时间</th><th>包含记录</th><th>结算金额</th></tr></thead><tbody>${rows || '<tr><td colspan="4"><div class="empty-state">还没有结算记录，工资到账后会显示在这里。</div></td></tr>'}</tbody></table></div></article>`;
 }
 
 function renderHistoryRows(items) {
   if (!items.length) return '<tr><td colspan="5"><div class="empty-state">没有找到匹配的记录。</div></td></tr>';
-  return items.map(item => `<tr><td>${formatDate(item.date)}</td><td>${item.time}</td><td><span class="tag ${qualityClass(item.quality)}">${item.quality}</span></td><td>${escapeHtml(item.feeling || item.note || '—')}</td><td class="record-money">+${money(state.rate)}</td></tr>`).join('');
+  return items.map(item => `<tr><td>${formatDate(item.date)}</td><td>${item.time}</td><td><span class="tag ${qualityClass(item.quality)}">${item.quality}</span></td><td>${escapeHtml(item.feeling || item.note || '—')}</td><td class="record-money">+${money(getEntryWage(item))}<small>${isSettled(item) ? '已结算' : '待结算'}</small></td></tr>`).join('');
 }
 
 function renderAdvice() {
@@ -119,9 +144,30 @@ function bindViewEvents() {
   $$('[data-view]').forEach(button => button.addEventListener('click', () => { state.activeView = button.dataset.view; saveState(); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
   $$('[data-scroll]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.scroll)?.scrollIntoView({ behavior: 'smooth', block: 'center' })));
   $$('[data-water]').forEach(button => button.addEventListener('click', () => { state.water = button.dataset.water === 'reset' ? 0 : state.water + Number(button.dataset.water); saveState(); render(); showToast(button.dataset.water === 'reset' ? '饮水记录已清零' : `已记录 ${button.dataset.water} ml 饮水`); }));
-  $('#recordForm')?.addEventListener('submit', (event) => { event.preventDefault(); const quality = $('input[name="quality"]:checked').value; state.entries.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), date: todayKey, time: $('#recordTime').value, quality, feeling: $('#recordFeeling').value, note: $('#recordNote').value.trim() }); saveState(); render(); showToast(`打卡成功，${money(state.rate)} 已到账`); });
+  $$('[data-settle]').forEach(button => button.addEventListener('click', settlePendingWages));
+  $('#recordForm')?.addEventListener('submit', (event) => { event.preventDefault(); const quality = $('input[name="quality"]:checked').value; state.entries.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), date: todayKey, time: $('#recordTime').value, quality, feeling: $('#recordFeeling').value, note: $('#recordNote').value.trim(), wage: state.rate }); saveState(); render(); showToast(`打卡成功，${money(state.rate)} 已到账`); });
   $('#historySearch')?.addEventListener('input', (event) => { const keyword = event.target.value.trim().toLowerCase(); const filtered = state.entries.filter(item => `${item.date} ${item.time} ${item.quality} ${item.feeling} ${item.note}`.toLowerCase().includes(keyword)).sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`)); $('#historyBody').innerHTML = renderHistoryRows(filtered); });
   $('[data-export]')?.addEventListener('click', exportRecords);
+}
+
+function settlePendingWages() {
+  const pendingEntries = getPendingEntries();
+  const amount = getTotalWage(pendingEntries);
+  if (!pendingEntries.length) { showToast('当前没有待结算工资'); return; }
+  if (!window.confirm(`确认结算 ${money(amount)} 吗？结算后工资清零，但记录会保留。`)) return;
+  const settledAt = new Date();
+  state.settlements.unshift({
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    date: dateKey(settledAt),
+    time: getSettlementTime(settledAt),
+    amount,
+    entryCount: pendingEntries.length,
+    entryIds: pendingEntries.map(item => item.id)
+  });
+  state.settledEntryIds.push(...pendingEntries.map(item => item.id));
+  saveState();
+  render();
+  showToast(`${money(amount)} 已结算，工资清零`);
 }
 
 function getStreak() {
@@ -132,7 +178,7 @@ function getStreak() {
 
 function escapeHtml(value = '') { return value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
 function showToast(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2300); }
-function exportRecords() { const lines = [['日期', '时间', '状态', '体感', '备注', '工资'], ...state.entries.map(item => [item.date, item.time, item.quality, item.feeling, item.note, state.rate])]; const csv = '\ufeff' + lines.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); link.download = `便便打工人-${todayKey}.csv`; link.click(); URL.revokeObjectURL(link.href); showToast('记录已导出为 CSV'); }
+function exportRecords() { const lines = [['日期', '时间', '状态', '体感', '备注', '工资', '结算状态'], ...state.entries.map(item => [item.date, item.time, item.quality, item.feeling, item.note, getEntryWage(item), isSettled(item) ? '已结算' : '待结算'])]; const csv = '\ufeff' + lines.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); link.download = `便便打工人-${todayKey}.csv`; link.click(); URL.revokeObjectURL(link.href); showToast('记录已导出为 CSV'); }
 
 function openSettings() { const dialog = $('#settingsDialog'); $('#nameInput').value = state.name; $('#rateInput').value = state.rate; $('#targetInput').value = state.target; dialog.showModal(); }
 $('#openSettings').addEventListener('click', openSettings);

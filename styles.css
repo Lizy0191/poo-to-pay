@@ -84,6 +84,8 @@ h3 { margin-bottom: 3px; font-size: 14px; }
 .progress-track { width: 190px; height: 7px; border-radius: 20px; background: rgba(255,255,255,.28); overflow: hidden; }
 .progress-fill { height: 100%; border-radius: inherit; background: #fff7d7; transition: width .3s ease; }
 .progress-label { font-size: 11px; color: #ffe3d3; }
+.settlement-button { padding: 7px 10px; border: 1px solid rgba(255,255,255,.35); border-radius: 6px; color: #fffaf2; background: rgba(117, 47, 36, .18); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.settlement-button:hover { background: rgba(117, 47, 36, .36); }
 .quick-stats { display: grid; gap: 18px; }
 .mini-card { background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 20px 22px; display: flex; align-items: center; gap: 15px; }
 .mini-icon { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; font-size: 21px; background: var(--yellow-soft); }
@@ -110,6 +112,8 @@ h3 { margin-bottom: 3px; font-size: 14px; }
 .record-copy strong { font-size: 12px; display: block; }
 .record-copy span { color: var(--muted); font-size: 10px; display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .record-money { color: var(--mint-dark); font-weight: 800; font-size: 12px; }
+.record-money small { display: block; color: #a69a8e; font-size: 9px; font-weight: 600; margin-top: 3px; text-align: right; }
+.record-row.is-settled .record-money { color: #9e948a; }
 .empty-state { border: 1px dashed #d9d0c4; border-radius: 7px; padding: 29px 15px; text-align: center; color: var(--muted); font-size: 12px; }
 .empty-state b { display: block; font-size: 25px; margin-bottom: 8px; }
 .add-panel { background: #f9f5ee; }
@@ -146,6 +150,7 @@ h3 { margin-bottom: 3px; font-size: 14px; }
 
 .history-toolbar { display: flex; gap: 10px; margin-bottom: 17px; }
 .search-input { max-width: 300px; }
+.settlement-panel { margin-top: 18px; }
 .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .history-table th { padding: 10px 9px; color: #a1968b; font-size: 10px; font-weight: 600; text-align: left; border-bottom: 1px solid var(--line); }
 .history-table td { padding: 13px 9px; border-bottom: 1px solid #f0ebe3; }
@@ -201,6 +206,7 @@ h3 { margin-bottom: 3px; font-size: 14px; }
   .mascot { transform: scale(.83); transform-origin: right center; margin-right: -9px; }
   .earnings-bottom { left: 22px; right: 22px; bottom: 20px; }
   .progress-track { flex: 1; }
+  .settlement-button { padding-left: 8px; padding-right: 8px; }
   .quick-stats { gap: 10px; margin-top: 12px; }
   .mini-card { padding: 14px; gap: 10px; }
   .mini-icon { width: 35px; height: 35px; border-radius: 10px; font-size: 17px; }
